@@ -12,6 +12,34 @@
 
 using namespace std;
 using namespace hsql;
+
+string executeCreate(const CreateStatement *stmt) {
+	string ret("CREATE TABLE ");
+	if (stmt->type != CreateStatement::kTable)
+		return ret + "...";
+	if (stmt->ifNotExists)
+		ret += "IF NOT EXISTS ";
+	ret += string(stmt->tableName) + "(...)";
+
+	//FIXME: get column
+
+	return ret;
+}
+string execute(const SQLStatement *stmt) {
+	switch(stmt->type()) {
+		case kStmtSelect:
+			return "SELECT ...";
+		case kStmtCreate:
+			return executeCreate((const CreateStatement *)stmt);
+		case kStmtInsert:
+			return "INSERT ..." ;
+		default:
+			return "Not implemented";
+	}
+	cout << stmt->type() << endl;
+	return "FIXME";
+}
+
 int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
@@ -54,6 +82,17 @@ int main(int argc, char *argv[]) {
 			
 		} else {
 			cout << "Invalid SQL statement." << endl;
+			cout << "your query was: " << query << endl;
+
+			for (uint i = 0; i < result->size(); ++i) {
+				cout << execute(result->getStatement(i)) << endl;
+			}
+
+			delete result;
+
+		} else {
+			cout << "Invalid SQL statement." <<endl;
+			delete result;
 		}
 	}
 
