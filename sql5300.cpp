@@ -10,12 +10,12 @@
 #include "db_cxx.h"
 #include "SQLParser.h"
 
-// using namespace std;
-
+using namespace std;
+using namespace hsql;
 int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
-		std::cerr << "Usage: ./sql5300 dbenvpath" << std::endl;
+		cerr << "Usage: ./sql5300 dbenvpath" <<endl;
 		return EXIT_FAILURE;
 	}
 
@@ -27,13 +27,12 @@ int main(int argc, char *argv[]) {
 	env.set_error_stream(&std::cerr);
 	env.open(envHome, DB_CREATE | DB_INIT_MPOOL, 0);
 
-	std::cout << "\nWelcome! Enter a SQL statement or \"quit\" to exit.\n" << std::endl;
-
+	cout << "\nWelcome! Enter a SQL statement or \"quit\" to exit.\n" <<endl;
 	// create user-input loop
 	while (true) {
-		std::cout << "SQL> ";
-		std::string query;
-		getline(std::cin, query);
+		cout << "SQL> ";
+		string query;
+		getline(cin, query);
 		if (query.length() == 0) {
 			continue;
 		}
@@ -42,11 +41,11 @@ int main(int argc, char *argv[]) {
 			break;
 		}
 		// parse query to a parse tree
-		hsql::SQLParserResult* result = hsql::SQLParser::parseSQLString(query);
+		SQLParserResult* result = SQLParser::parseSQLString(query);
 
 		// check if parse tree is valid
 		if (result->isValid()) {
-			std::cout << "your query was: " << query << std::endl;
+			cout << "your query was: " << query << endl;
 			
 			// FIX-ME
 			// for (uint i = 0; i < result->size(); ++i) {
@@ -54,10 +53,9 @@ int main(int argc, char *argv[]) {
 			// }
 			
 		} else {
-			std::cout << "Invalid SQL statement." << std::endl;
+			cout << "Invalid SQL statement." << endl;
 		}
 	}
 
 	return EXIT_SUCCESS;
 }
-
