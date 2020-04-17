@@ -10,7 +10,35 @@
 #include "db_cxx.h"
 #include "SQLParser.h"
 
-// using namespace std;
+using namespace std;
+using namespace hsql;
+
+string executeCreate(const CreateStatement *stmt) {
+	string ret("CREATE TABLE ");
+	if (stmt->type != CreateStatement::kTable)
+		return ret + "...";
+	if (stmt->ifNotExists)
+		ret += "IF NOT EXISTS ";
+	ret += string(stmt->tableName) + "(...)";
+
+	//FIXME: get column
+
+	return ret;
+}
+string execute(const SQLStatement *stmt) {
+	switch(stmt->type()) {
+		case kStmtSelect:
+			return "SELECT ...";
+		case kStmtCreate:
+			return executeCreate((const CreateStatement *)stmt);
+		case kStmtInsert:
+			return "INSERT ..." ;
+		default:
+			return "Not implemented";
+	}
+	cout << stmt->type() << endl;
+	return "FIXME";
+}
 
 int main(int argc, char *argv[]) {
 
@@ -47,14 +75,16 @@ int main(int argc, char *argv[]) {
 		// check if parse tree is valid
 		if (result->isValid()) {
 			std::cout << "your query was: " << query << std::endl;
-			
-			// FIX-ME
-			// for (uint i = 0; i < result->size(); ++i) {
-			// 	hsql::printStatementInfo(result.getStatement(i))
-			// }
-			
+
+			for (uint i = 0; i < result->size(); ++i) {
+				cout << execute(result->getStatement(i)) << endl;
+			}
+
+			delete result;
+
 		} else {
 			std::cout << "Invalid SQL statement." << std::endl;
+			delete result;
 		}
 	}
 
