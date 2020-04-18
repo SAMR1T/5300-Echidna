@@ -1,6 +1,7 @@
-/*
+/**
  * @file sql5300.cpp main entry for the sql5300 relational db manager for spsc5300 course
- * @author Team Echidna
+ * @author  CPSC5300-Spring2020 students
+ * @version Team Echidna
  * @see Seattle U, CPSC 5300, Spring 2020
  */
 
@@ -13,18 +14,65 @@
 using namespace std;
 using namespace hsql;
 
-string executeCreate(const CreateStatement *stmt) {
-	string ret("CREATE TABLE ");
-	if (stmt->type != CreateStatement::kTable)
-		return ret + "...";
-	if (stmt->ifNotExists)
-		ret += "IF NOT EXISTS ";
-	ret += string(stmt->tableName) + "(...)";
-
-	//FIXME: get column
-
-	return ret;
+/**
+ * Convert the hyrise ColumnDefinition AST back to equivalent SQL
+ * @param col column definition to unparse
+ * @return SQL equivalent to *col
+ */
+string convertColToStr(const ColumnDefinition *col) {
+	string res(col->name);
+	switch(col->type) {
+			case ColumnDefinition::INT:
+				res += " INT, ";
+				break;
+			case ColumnDefinition::DOUBLE:
+				res += " DOUBLE, ";
+				break;
+			case ColumnDefinition::TEXT:
+				res += " TEXT, ";
+				break;
+			default:
+				res += " UNKNOWN, ";
+				break;
+		}
+		return res;
 }
+
+/**
+ * Convert the hyrise CreateStatement AST back to equivalent SQL
+ * @param stmt statement to unparse
+ * @return SQL equivalent to *stmt
+ */
+string executeCreate(const CreateStatement *stmt) {
+	string res("CREATE TABLE ");
+
+	if (stmt->type != CreateStatement::kTable)
+		return res + "...";
+	if (stmt->ifNotExists)
+		res += "IF NOT EXISTS ";
+	
+	res += string(stmt->tableName);
+	res += "(";
+
+	// Locate the column info in the statement
+	vector<ColumnDefinition*> *colms = stmt->columns;
+
+	// Get the name & type of each column
+	for (uint i = 0; i < colms->size(); ++i) {
+		res += convertColToStr(colms->at(i));
+	}
+	// delete colms;
+	res.resize(res.size() - 2);
+	res += ")";
+
+	return res;
+}
+
+/**
+ * Convert the hyrise SQLStatement AST back to equivalent SQL
+ * @param stmt statement to unparse
+ * @return SQL equivalent to *stmt
+ */ 
 string execute(const SQLStatement *stmt) {
 	switch(stmt->type()) {
 		case kStmtSelect:
@@ -40,6 +88,9 @@ string execute(const SQLStatement *stmt) {
 	return "FIXME";
 }
 
+/**
+ * Validate and convert the SQL statements entered by user
+ */ 
 int main(int argc, char *argv[]) {
 
 	if (argc != 2) {
@@ -74,26 +125,17 @@ int main(int argc, char *argv[]) {
 		// check if parse tree is valid
 		if (result->isValid()) {
 			cout << "your query was: " << query << endl;
-			
-			// FIX-ME
-			// for (uint i = 0; i < result->size(); ++i) {
-			// 	hsql::printStatementInfo(result.getStatement(i))
-			// }
-			
-		} else {
-			cout << "Invalid SQL statement." << endl;
-			cout << "your query was: " << query << endl;
 
 			for (uint i = 0; i < result->size(); ++i) {
-				cout << execute(result->getStatement(i)) << endl;
+				cout << "convert query - "
+				<< execute(result->getStatement(i)) << endl;
 			}
-
-			delete result;
 
 		} else {
 			cout << "Invalid SQL statement." <<endl;
-			delete result;
 		}
+
+		delete result;
 	}
 
 	return EXIT_SUCCESS;
