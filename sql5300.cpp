@@ -22,20 +22,20 @@ using namespace hsql;
 string convertColToStr(const ColumnDefinition *col) {
 	string res(col->name);
 	switch(col->type) {
-			case ColumnDefinition::INT:
-				res += " INT, ";
-				break;
-			case ColumnDefinition::DOUBLE:
-				res += " DOUBLE, ";
-				break;
-			case ColumnDefinition::TEXT:
-				res += " TEXT, ";
-				break;
-			default:
-				res += " UNKNOWN, ";
-				break;
-		}
-		return res;
+		case ColumnDefinition::INT:
+			res += " INT, ";
+			break;
+		case ColumnDefinition::DOUBLE:
+			res += " DOUBLE, ";
+			break;
+		case ColumnDefinition::TEXT:
+			res += " TEXT, ";
+			break;
+		default:
+			res += " UNKNOWN, ";
+			break;
+	}
+	return res;
 }
 
 /**
@@ -69,6 +69,46 @@ string executeCreate(const CreateStatement *stmt) {
 }
 
 /**
+ * Convert the hyrise SelectStatement AST back to equivalent SQL
+ * @param stmt statement to unparse
+ * @return SQL equivalent to *stmt
+ */
+string executeSelect(const SelectStatement *stmt) {
+	string res("SELECT ");
+
+	// Get the name of cols in the select list
+	vector<Expr*>* selectList = stmt->selectList;
+
+	for (uint i = 0; i < selectList->size(); ++i) {
+
+		Expr * item = selectList->at(i);
+
+		// if star/wildcard is selected, add "*" instead
+		if (item->type == kExprStar) {
+			res += "*  ";
+		} else {
+			res += selectList->at(i)->name;
+		   	res += ", ";
+		}
+	}
+	res.resize(res.size() - 2);
+	res += " FROM ";
+	
+	// Get the name of table to select cols from
+	TableRef* tb = stmt->fromTable;
+	res += string(tb->getName());
+
+	cout << "grpby: " << stmt->groupBy << endl;
+	cout << "limit: " << stmt->limit << endl;
+	cout << "order: " << stmt->order << endl;
+	cout << "selectDistinct: " << stmt->selectDistinct << endl;
+	cout << "unionSelect: " << stmt->unionSelect << endl;
+	cout << "whereClause: " << stmt->whereClause << endl;
+
+	return res;
+}
+
+/**
  * Convert the hyrise SQLStatement AST back to equivalent SQL
  * @param stmt statement to unparse
  * @return SQL equivalent to *stmt
@@ -76,7 +116,7 @@ string executeCreate(const CreateStatement *stmt) {
 string execute(const SQLStatement *stmt) {
 	switch(stmt->type()) {
 		case kStmtSelect:
-			return "SELECT ...";
+			return executeSelect((const SelectStatement *)stmt);
 		case kStmtCreate:
 			return executeCreate((const CreateStatement *)stmt);
 		case kStmtInsert:
