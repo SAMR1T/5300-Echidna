@@ -137,16 +137,50 @@ string executeSelect(const SelectStatement *stmt) {
 	TableRef* table = stmt->fromTable;
 
 	res += convertTableRef(table);
-	
-	// cout << "grpby: " << stmt->groupBy << endl;
-	// cout << "limit: " << stmt->limit << endl;
-	// cout << "order: " << stmt->order << endl;
-	// cout << "selectDistinct: " << stmt->selectDistinct << endl;
-	// cout << "unionSelect: " << stmt->unionSelect << endl;
-	// cout << "whereClause: " << stmt->whereClause << endl;
-
+	//if (stmt->whereClause != NULL)
+       // res += " WHERE " + printExpresion(stmt->whereClause);
 	return res;
 }
+
+/* parses SQL exprression
+ * Referrence Professor klundeen/sql-parser 
+ *
+
+string printExpression(Expr* expr) {
+    string res
+    switch (expr->type) {
+    case kExprStar:
+      res +=("*");
+      break;
+    case kExprColumnRef:
+	if(expr->table !=NULL)
+	 res += string(expr->table) + ".";
+    case kExprLiteralFloat:
+      res += to_string(expr->fval);
+      break;
+    case kExprLiteralInt:
+      res += to_string(expr->ival);
+      break;
+    case kExprLiteralString:
+      inprint(expr->name);
+      break;
+    case kExprFunctionRef:
+      res += string(expr->name) + "?" + expr->expr->name;
+      break;
+    case kExprOperator:
+      res += operatorExpressionToString(expr);
+      break;
+    default:
+      res += "???";
+      break
+    }
+    if (expr->alias != NULL) {
+	res += string(" AS ") + expr->alias;
+  return res;
+    }
+  }
+*/
+
 
 /**
  * Convert the hyrise SQLStatement AST back to equivalent SQL
