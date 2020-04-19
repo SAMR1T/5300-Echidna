@@ -23,16 +23,16 @@ string convertColToStr(const ColumnDefinition *col) {
 	string res(col->name);
 	switch(col->type) {
 		case ColumnDefinition::INT:
-			res += " INT, ";
+			res += " INT";
 			break;
 		case ColumnDefinition::DOUBLE:
-			res += " DOUBLE, ";
+			res += " DOUBLE";
 			break;
 		case ColumnDefinition::TEXT:
-			res += " TEXT, ";
+			res += " TEXT";
 			break;
 		default:
-			res += " UNKNOWN, ";
+			res += " UNKNOWN";
 			break;
 	}
 	return res;
@@ -51,20 +51,60 @@ string executeCreate(const CreateStatement *stmt) {
 	if (stmt->ifNotExists)
 		res += "IF NOT EXISTS ";
 	
-	res += string(stmt->tableName);
-	res += "(";
+	res += string(stmt->tableName) + " (";
 
-	// Locate the column info in the statement
+	// locate the column info in the statement
 	vector<ColumnDefinition*> *colms = stmt->columns;
 
-	// Get the name & type of each column
+	// get the name & type of each column
 	for (uint i = 0; i < colms->size(); ++i) {
-		res += convertColToStr(colms->at(i));
+		res += convertColToStr(colms->at(i)) + ", ";
 	}
-	// delete colms;
 	res.resize(res.size() - 2);
 	res += ")";
 
+	return res;
+}
+
+/**
+ * Convert the hyrise expression item AST back to equivalent SQL
+ * @param item item to unparse
+ * @return SQL equivalent to *item
+ */
+string convertToStr(const Expr* item) {
+    string res = "";
+    switch(item->type) {
+		case kExprStar:
+			res += "*";
+			break;	
+		case kExprColumnRef:
+			// just col name
+			if (item->table == NULL) {
+				res += string(item->name);
+				break;
+			}
+			// table/alias name + col name
+			if (item->alias != NULL) {
+				res += string(item->alias) + "." + string(item->name);
+			} else {
+				res += string(item->table) + "." + string(item->name);
+			}
+			break;
+		case kExprOperator:
+			res += convertToStr(item->expr) + " ";
+			res += item->opChar;
+			res += " " +  convertToStr(item->expr2);
+			break;
+		case kExprLiteralFloat:
+            res += to_string(item->fval);
+            break;
+        case kExprLiteralInt:
+            res += to_string(item->ival);
+            break;
+		default:
+			res += "Not Implemented";
+			break;
+    }
 	return res;
 }
 
@@ -82,7 +122,6 @@ string convertJoin(const JoinDefinition *join) {
 		default:
 			return " JOIN ";
 	}
-	return "";
 }
 
 /**
@@ -91,19 +130,30 @@ string convertJoin(const JoinDefinition *join) {
  * @return SQL equivalent to *table
  */
 string convertTableRef(const TableRef *table) {
-	string res(" FROM ");
+	string res = "";
 	switch(table->type) {
 		case kTableName:
 			res += string(table->name);
+			if (table->alias != NULL) {
+				res += " AS " + string(table->alias);
+			}
 			break;
 		case kTableJoin:
-			JoinDefinition* join = table->join;
-			string leftTab = join->left->name;
-			string rightTab = join->right->name;
-			string col = join->condition->expr->name;
-			res += leftTab + convertJoin(join) + rightTab;
-			res += " ON " + leftTab + "." + col + " = " + rightTab + "." + col;
+			// JoinDefinition* join = table->join;
+			res += convertTableRef(table->join->left) + convertJoin(table->join);
+			res += convertTableRef(table->join->right);
+			res += " ON " + convertToStr(table->join->condition);
 			break;  
+		case kTableCrossProduct:
+			// vector<TableRef*>* tables = table->list;
+			for (TableRef *tab : *table->list) {
+				res += convertTableRef(tab) + ", ";
+			}
+			res.resize(res.size() - 2);
+			break;
+		default:
+			res += "Not Implemented";
+			break;
 	}
 	return res;
 }
@@ -116,71 +166,25 @@ string convertTableRef(const TableRef *table) {
 string executeSelect(const SelectStatement *stmt) {
 	string res("SELECT ");
 
-	// Get the name of cols in the select list
+	// get the name of cols in the select list
 	vector<Expr*>* selectList = stmt->selectList;
 
 	for (uint i = 0; i < selectList->size(); ++i) {
-
-		Expr * item = selectList->at(i);
-
-		// if star/wildcard is selected, add "*" instead
-		if (item->type == kExprStar) {
-			res += "*  ";
-		} else {
-			res += selectList->at(i)->name;
-		   	res += ", ";
-		}
+		// note: may have "*" instead of cols
+		res += convertToStr(selectList->at(i)) + ", ";
 	}
 	res.resize(res.size() - 2);
 
-	// Get the name of table to select cols from
+	// get the name of table to select cols from
 	TableRef* table = stmt->fromTable;
 
-	res += convertTableRef(table);
-	//if (stmt->whereClause != NULL)
-       // res += " WHERE " + printExpresion(stmt->whereClause);
+	res += " FROM " + convertTableRef(table);
+
+	// get the where clause if exists
+	if (stmt->whereClause != NULL)
+       res += " WHERE " + convertToStr(stmt->whereClause);
 	return res;
 }
-
-/* parses SQL exprression
- * Referrence Professor klundeen/sql-parser 
- *
-
-string printExpression(Expr* expr) {
-    string res
-    switch (expr->type) {
-    case kExprStar:
-      res +=("*");
-      break;
-    case kExprColumnRef:
-	if(expr->table !=NULL)
-	 res += string(expr->table) + ".";
-    case kExprLiteralFloat:
-      res += to_string(expr->fval);
-      break;
-    case kExprLiteralInt:
-      res += to_string(expr->ival);
-      break;
-    case kExprLiteralString:
-      inprint(expr->name);
-      break;
-    case kExprFunctionRef:
-      res += string(expr->name) + "?" + expr->expr->name;
-      break;
-    case kExprOperator:
-      res += operatorExpressionToString(expr);
-      break;
-    default:
-      res += "???";
-      break
-    }
-    if (expr->alias != NULL) {
-	res += string(" AS ") + expr->alias;
-  return res;
-    }
-  }
-*/
-
 
 /**
  * Convert the hyrise SQLStatement AST back to equivalent SQL
@@ -198,29 +202,30 @@ string execute(const SQLStatement *stmt) {
 		default:
 			return "Not implemented";
 	}
-	cout << stmt->type() << endl;
-	return "FIXME";
 }
 
 /**
  * Validate and convert the SQL statements entered by user
+ * @param argc number of user input
+ * @param argv[] the content of user input
  */ 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 
 	if (argc != 2) {
 		cerr << "Usage: ./sql5300 dbenvpath" <<endl;
 		return EXIT_FAILURE;
 	}
 
-	char *envHome = argv[1];
+	char* envHome = argv[1];
 
-	// Create BerkeleyDB environment
+	// create BerkeleyDB environment
 	DbEnv env(0U);
 	env.set_message_stream(&std::cout);
 	env.set_error_stream(&std::cerr);
 	env.open(envHome, DB_CREATE | DB_INIT_MPOOL, 0);
 
 	cout << "\nWelcome! Enter a SQL statement or \"quit\" to exit.\n" <<endl;
+	
 	// create user-input loop
 	while (true) {
 		cout << "SQL> ";
@@ -238,15 +243,11 @@ int main(int argc, char *argv[]) {
 
 		// check if parse tree is valid
 		if (result->isValid()) {
-			cout << "your query was: " << query << endl;
-
 			for (uint i = 0; i < result->size(); ++i) {
-				cout << "convert query - "
-				<< execute(result->getStatement(i)) << endl;
+				cout << "---> " << execute(result->getStatement(i)) << endl;
 			}
-
 		} else {
-			cout << "Invalid SQL statement." <<endl;
+			cout << " X Invalid SQL statement." <<endl;
 		}
 
 		delete result;
