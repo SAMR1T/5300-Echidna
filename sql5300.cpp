@@ -69,6 +69,46 @@ string executeCreate(const CreateStatement *stmt) {
 }
 
 /**
+ * Convert the hyrise JoinDefinition AST back to equivalent SQL
+ * @param join join to unparse
+ * @return SQL equivalent to *join
+ */
+string convertJoin(const JoinDefinition *join) {
+	switch(join->type) {
+		case kJoinLeft:
+			return " LEFT JOIN ";
+		case kJoinRight:
+			return " RIGHT JOIN ";
+		default:
+			return " JOIN ";
+	}
+	return "";
+}
+
+/**
+ * Convert the hyrise TableRef AST back to equivalent SQL
+ * @param table table to unparse
+ * @return SQL equivalent to *table
+ */
+string convertTableRef(const TableRef *table) {
+	string res(" FROM ");
+	switch(table->type) {
+		case kTableName:
+			res += string(table->name);
+			break;
+		case kTableJoin:
+			JoinDefinition* join = table->join;
+			string leftTab = join->left->name;
+			string rightTab = join->right->name;
+			string col = join->condition->expr->name;
+			res += leftTab + convertJoin(join) + rightTab;
+			res += " ON " + leftTab + "." + col + " = " + rightTab + "." + col;
+			break;  
+	}
+	return res;
+}
+
+/**
  * Convert the hyrise SelectStatement AST back to equivalent SQL
  * @param stmt statement to unparse
  * @return SQL equivalent to *stmt
@@ -92,18 +132,18 @@ string executeSelect(const SelectStatement *stmt) {
 		}
 	}
 	res.resize(res.size() - 2);
-	res += " FROM ";
-	
-	// Get the name of table to select cols from
-	TableRef* tb = stmt->fromTable;
-	res += string(tb->getName());
 
-	cout << "grpby: " << stmt->groupBy << endl;
-	cout << "limit: " << stmt->limit << endl;
-	cout << "order: " << stmt->order << endl;
-	cout << "selectDistinct: " << stmt->selectDistinct << endl;
-	cout << "unionSelect: " << stmt->unionSelect << endl;
-	cout << "whereClause: " << stmt->whereClause << endl;
+	// Get the name of table to select cols from
+	TableRef* table = stmt->fromTable;
+
+	res += convertTableRef(table);
+	
+	// cout << "grpby: " << stmt->groupBy << endl;
+	// cout << "limit: " << stmt->limit << endl;
+	// cout << "order: " << stmt->order << endl;
+	// cout << "selectDistinct: " << stmt->selectDistinct << endl;
+	// cout << "unionSelect: " << stmt->unionSelect << endl;
+	// cout << "whereClause: " << stmt->whereClause << endl;
 
 	return res;
 }
