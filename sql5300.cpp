@@ -72,8 +72,8 @@ string executeCreate(const CreateStatement *stmt) {
  * @return SQL equivalent to *item
  */
 string convertToStr(const Expr* item) {
-    string res = "";
-    switch(item->type) {
+	string res = "";
+	switch(item->type) {
 		case kExprStar:
 			res += "*";
 			break;	
@@ -96,15 +96,15 @@ string convertToStr(const Expr* item) {
 			res += " " +  convertToStr(item->expr2);
 			break;
 		case kExprLiteralFloat:
-            res += to_string(item->fval);
-            break;
-        case kExprLiteralInt:
-            res += to_string(item->ival);
-            break;
+			res += to_string(item->fval);
+			break;
+		case kExprLiteralInt:
+			res += to_string(item->ival);
+			break;
 		default:
 			res += "Not Implemented";
 			break;
-    }
+	}
 	return res;
 }
 
@@ -182,7 +182,7 @@ string executeSelect(const SelectStatement *stmt) {
 
 	// get the where clause if exists
 	if (stmt->whereClause != NULL)
-       res += " WHERE " + convertToStr(stmt->whereClause);
+		res += " WHERE " + convertToStr(stmt->whereClause);
 	return res;
 }
 
