@@ -1,3 +1,10 @@
+/**
+ * @file heap_storage.cpp Heap Storage Engine components for the sql5300 relational db manager
+ * @author  CPSC5300-Spring2020 students
+ * @version Team Echidna
+ * @see Seattle U, CPSC 5300, Spring 2020
+ */
+
 #include "heap_storage.h"
 #include <cstring>
 
@@ -23,8 +30,6 @@ SlottedPage::SlottedPage(Dbt &block, BlockID block_id, bool is_new) : DbBlock(bl
         this->put_header();
     }
 }
-
-// SlottedPage::~SlottedPage() {}
 
 /**
  * Add a new record to the block given data
@@ -145,13 +150,6 @@ RecordIDs * SlottedPage::ids(void) {return nullptr;}
 //     return ids;
 // }
 
-
-// u_int16_t num_records;
-// u_int16_t end_free;
-
-
-u_int16_t SlottedPage::get_n(u_int16_t offset) { return 0;}
-
 /**
  * Get the size and offset for given record_id. 
  * For record_id of zero, it is the block header
@@ -177,8 +175,71 @@ bool SlottedPage::has_room(u_int16_t size) {return false;};
 
 void SlottedPage::slide(u_int16_t start, u_int16_t end) {};
 
-
+u_int16_t SlottedPage::get_n(u_int16_t offset) { return 0;}
 
 void SlottedPage::put_n(u_int16_t offset, u_int16_t n) {};
 
 void * SlottedPage::address(u_int16_t offset) {return nullptr;};
+
+
+
+
+/* HeapFile */
+
+void HeapFile::create(void) {}
+
+void HeapFile::drop(void) {}
+
+void HeapFile::open(void) {}
+
+void HeapFile::close(void) {}
+
+SlottedPage * HeapFile::get_new(void) {return nullptr;}
+
+SlottedPage * HeapFile::get(BlockID block_id) {return nullptr;}
+
+void HeapFile::put(DbBlock *block) {}
+
+BlockIDs * HeapFile::block_ids() {return nullptr;}
+
+void HeapFile::db_open(uint flags) {}
+
+
+
+
+/* HeapTable */
+
+HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes)
+: DbRelation(table_name, column_names, column_attributes) {};
+
+void HeapTable::create() {}
+
+void HeapTable::create_if_not_exists() {}
+
+void HeapTable::drop() {}
+
+void HeapTable::open() {}
+
+void HeapTable::close() {}
+
+Handle HeapTable::insert(const ValueDict *row) {return std::make_pair(1, 2);}
+
+void HeapTable::update(const Handle handle, const ValueDict *new_values) {}
+
+void HeapTable::del(const Handle handle) {}
+
+Handles * HeapTable::select() {return nullptr;}
+
+Handles * HeapTable::select(const ValueDict *where) {return nullptr;}
+
+ValueDict * HeapTable::project(Handle handle) {return nullptr;}
+
+ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {return nullptr;}
+
+ValueDict * HeapTable::validate(const ValueDict *row) {return nullptr;}
+
+Handle HeapTable::append(const ValueDict *row) {return std::make_pair(1, 2);}
+
+Dbt * HeapTable::marshal(const ValueDict *row) {return nullptr;}
+
+ValueDict * HeapTable::unmarshal(Dbt *data) {return nullptr;}
