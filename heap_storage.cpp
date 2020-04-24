@@ -62,7 +62,7 @@ RecordID SlottedPage::add(const Dbt *data) {
     memcpy(this->address(this->end_free + 1), data->get_data(), size);
 
     // add header
-    put_header();  // ???
+    put_header();  // update header 0 (record_nums, free end)
     put_header(this->num_records, size, this->end_free + 1);
 
     return this->num_records;
@@ -164,16 +164,8 @@ RecordIDs* SlottedPage::ids(void) {
  * @param id given id of a record
  */ 
 void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) {
-    // check if from start
-    if (id == 0) {
-        size = 0;
-        loc = 0;
-    
-    // get size and offset
-    } else {
-        size = this->get_n(4 * id);
-        loc = this->get_n(4 * id + 2);
-    }
+    size = this->get_n(4 * id);
+    loc = this->get_n(4 * id + 2);
 }
 
 /**
@@ -184,14 +176,16 @@ void SlottedPage::get_header(u16 &size, u16 &loc, RecordID id) {
  * @param loc given offset to put
  */ 
 void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
-    // if call put_header(), use default params 
+    // check if update header 0 (num records, free end)
     if (id == 0) {  
-        size = this->num_records;   // (0, 0, 0) ???
-        loc = this->end_free;       // (0, 0, 0) ???
-    }
-    // put header with size and offset
-    put_n(4 * id, size);
-    put_n(4 * id + 2, loc);
+        size = this->num_records;  
+        loc = this->end_free;
+
+    // put header with size and offset         
+    } else {
+        put_n(4 * id, size);
+        put_n(4 * id + 2, loc);
+    }    
 }
 
 /**
