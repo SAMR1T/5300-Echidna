@@ -10,7 +10,7 @@
  */
 
 #include "heap_storage.h"
-// #include "db_cxx.h"
+#include "db_cxx.h"
 #include <cstring>
 
 using namespace std;
