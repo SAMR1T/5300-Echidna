@@ -309,7 +309,7 @@ void HeapFile::db_open(uint flags) {}
 
 
 /* HeapTable */
-//HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes) {}
+
 
 void HeapTable::create(){ 
     cout << "Creating" << endl;
@@ -347,7 +347,23 @@ void HeapTable::update(const Handle handle, const ValueDict *new_values) {}
 
 void HeapTable::del(const Handle handle) {}
 
-Handles * HeapTable::select() {return nullptr;}
+
+
+Handles * HeapTable::select() {
+    Handles* handles = new Handles();
+    BlockIDs* block_ids = file.block_ids();
+    for (auto const& block_id: *block_ids) {
+        SlottedPage* block = file.get(block_id);
+        RecordIDs* record_ids = block->ids();
+        for (auto const& record_id: *record_ids)
+            handles->push_back(Handle(block_id, record_id));
+        delete record_ids;
+        delete block;
+    }
+    delete block_ids;
+    return handles;
+}
+
 
 Handles* HeapTable::select(const ValueDict* where) {
     Handles* handles = new Handles();
@@ -365,13 +381,7 @@ Handles* HeapTable::select(const ValueDict* where) {
 }
 
 
-ValueDict * HeapTable::project(Handle handle) {return nullptr;}
-
 ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {return nullptr;}
-
-ValueDict * HeapTable::validate(const ValueDict *row) {return nullptr;}
-
-Handle HeapTable::append(const ValueDict *row) {return std::make_pair(1, 2);}
 
 // return the bits to go into the file
 // // caller responsible for freeing the returned Dbt and its enclosed ret->get_data().
