@@ -310,6 +310,8 @@ void HeapFile::db_open(uint flags) {}
 
 /* HeapTable */
 
+HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes), file(table_name) {
+}
 
 void HeapTable::create(){ 
     cout << "Creating" << endl;
@@ -381,7 +383,60 @@ Handles* HeapTable::select(const ValueDict* where) {
 }
 
 
-ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {return nullptr;}
+ValueDict* HeapTable:: project(Handle handle) {
+    BlockID block_id = handle.first;
+    RecordID record_id = handle.second;
+    SlottedPage* block = file.get(block_id);
+    Dbt* data = block->get(record_id);
+    ValueDict* row = unmarshal(data);
+
+    delete data;
+    return row;
+}
+
+
+ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {
+	return nullptr;
+}
+
+
+ValueDict* HeapTable::validate(const ValueDict *row){
+	ValueDict* full_row = new ValueDict();
+    for (auto const& column_name: this->column_names){
+    	ValueDict::const_iterator column = row->find(column_name);
+    	Value value;
+
+    	if (column ==row->end()) {
+    	throw DbRelationError("don't know how to handle NULLS, defaults, etc. yet");
+    	}else{
+    		value = column->second;
+    	}
+    	full_row->insert(make_pair(column_name, value));
+    }
+  return full_row;
+}
+
+
+
+
+Handle HeapTable::append(const ValueDict *row) {
+    Dbt *data = this->marshal(row);
+    SlottedPage *block = this->file.get(this->file.get_last_block_id());
+    RecordID record_id;
+    try {
+    	record_id = block->add(data); 
+    } catch (...) {
+      block = this->file.get_new();
+      record_id = block->add(data);
+    }
+    this->file.put(block);
+    delete data;
+    delete block;
+
+    return Handle(this->file.get_last_block_id(), record_id);
+}
+
+
 
 // return the bits to go into the file
 // // caller responsible for freeing the returned Dbt and its enclosed ret->get_data().
