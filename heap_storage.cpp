@@ -17,8 +17,6 @@ using namespace std;
 
 typedef u_int16_t u16;
 
-bool test_heap_storage() {return true;}
-
 /* SlottedPage */
 
 /**
@@ -180,7 +178,7 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
     if (id == 0) {  
         size = this->num_records;  
         loc = this->end_free;
-
+    }
     // put header with size and offset         
     put_n(4 * id, size);
     put_n(4 * id + 2, loc);
@@ -263,7 +261,12 @@ void* SlottedPage::address(u16 offset) {
 }
 
 
-
+bool test_heap_storage() {
+    char block[DbBlock::BLOCK_SZ];
+    Dbt dbtblock(block, DbBlock::BLOCK_SZ);
+    SlottedPage page(dbtblock, 1, true);
+    return true;
+}
 
 /* HeapFile */
 
