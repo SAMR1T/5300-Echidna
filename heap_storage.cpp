@@ -182,10 +182,8 @@ void SlottedPage::put_header(RecordID id, u16 size, u16 loc) {
         loc = this->end_free;
 
     // put header with size and offset         
-    } else {
-        put_n(4 * id, size);
-        put_n(4 * id + 2, loc);
-    }    
+    put_n(4 * id, size);
+    put_n(4 * id + 2, loc);
 }
 
 /**
