@@ -49,4 +49,5 @@ HeapFile - implementation done </br>
 HeapTable  - implementation done</br>
 
 * **Handover video**</br>
+https://seattleu.instructuremedia.com/embed/c0dce768-704d-4164-b983-77114b32843e
 

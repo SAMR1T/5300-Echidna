@@ -221,7 +221,7 @@ void SlottedPage::slide(u16 start, u16 end) {
         }
         id++;
     }
-
+    delete ids;
     // update free end offset
     this->end_free += shift;
     this->put_header();
@@ -265,6 +265,7 @@ void HeapFile::create(void) {
     // put in the first block
     SlottedPage *block = get_new();
     put(block);
+    delete block;
 }
 
 /**
@@ -478,7 +479,10 @@ Handles* HeapTable::select(const ValueDict* where) {
         RecordIDs* record_ids = block->ids();
         for (auto const& record_id: *record_ids)
             handles->push_back(Handle(block_id, record_id));
+        delete block;
+        delete record_ids;
     }
+    delete block_ids;
     return handles;
 }
 
@@ -497,6 +501,8 @@ ValueDict* HeapTable:: project(Handle handle) {
     RecordID record_id = handle.second;
     SlottedPage* block = file.get(block_id);
     Dbt* data = block->get(record_id);
+    delete block;
+    delete data;
     ValueDict* row = unmarshal(data);
     return row;
 }
@@ -539,6 +545,8 @@ Handle HeapTable::append(const ValueDict *row) {
       record_id = block->add(data);
     }
     this->file.put(block);
+    delete block;
+    delete data;
     return Handle(this->file.get_last_block_id(), record_id);
 }
 
