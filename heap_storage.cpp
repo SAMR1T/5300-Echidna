@@ -373,7 +373,6 @@ void HeapFile::db_open(uint flags) {
     this->closed = false;
 }
 
-bool test_heap_storage() {return true;}
 
 
 
