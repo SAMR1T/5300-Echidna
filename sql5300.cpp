@@ -1,7 +1,7 @@
 /**
  * @file sql5300.cpp main entry for the sql5300 relational db manager for spsc5300 course
- * @author  CPSC5300-Spring2020 students
- * @version Team Echidna
+ * @author  Yibo Sheng, Tong(Debby) Ding
+ * @version Team Echidna, Sprint Verano
  * @see Seattle U, CPSC 5300, Spring 2020
  */
 
