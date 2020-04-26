@@ -274,8 +274,8 @@ void HeapFile::create(void) {
  */
 void HeapFile::drop(void) {
     close();
-    // if no db specified, remove the underlying file 
-    this->db.remove(this->dbfilename.c_str(), nullptr, 0);
+    Db db(_DB_ENV, 0);
+    db.remove(this->dbfilename.c_str(), nullptr, 0);
 }
 
 /**
