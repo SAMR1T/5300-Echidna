@@ -12,6 +12,13 @@
 #include "heap_storage.h"
 #include "db_cxx.h"
 #include <cstring>
+#include <utility>
+#include <vector>
+#include <exception>
+#include <map>
+#include "storage_engine.h"
+#include <cstdint>
+#include <iostream>
 
 using namespace std;
 
@@ -261,12 +268,6 @@ void* SlottedPage::address(u16 offset) {
 }
 
 
-bool test_heap_storage() {
-    char block[DbBlock::BLOCK_SZ];
-    Dbt dbtblock(block, DbBlock::BLOCK_SZ);
-    SlottedPage page(dbtblock, 1, true);
-    return true;
-}
 
 /* HeapFile */
 
@@ -308,17 +309,25 @@ void HeapFile::db_open(uint flags) {}
 
 
 
+
 /* HeapTable */
 
-HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes), file(table_name) {
+
+HeapTable::HeapTable(Identifier table_name, ColumnNames column_names, ColumnAttributes column_attributes) : DbRelation(table_name, column_names, column_attributes),file(table_name){
 }
+
+/*                                                                     
+ * Create HeapTable                                                        
+ */
 
 void HeapTable::create(){ 
     cout << "Creating" << endl;
     this->file.create();
 }
 
-
+/*                                                                     
+ * Create a new file if no file exist                                                        
+ */
 void HeapTable::create_if_not_exists() {
     try {
       this->open();
@@ -327,30 +336,50 @@ void HeapTable::create_if_not_exists() {
     } 
 }
 
+/*                                                                     
+ * drop table                                                       
+ */
 
 void HeapTable::drop() {
     this->file.drop();
 }
 
+/*                                                                     
+ * open a table                                                        
+ */
 void HeapTable::open() {
     this->file.open();
 }
 
+/*                                                                     
+ * close the table                                                        
+ */
 void HeapTable::close() {
     this->file.close();
 }
 
+/*                                                                     
+ * Insert a row into table                                                        
+ */
 Handle HeapTable::insert(const ValueDict *row) {
     this->open();
     return this->append(this->validate(row));
 }
 
+/*                                                                     
+ * update a row in the table                                                       
+ */
 void HeapTable::update(const Handle handle, const ValueDict *new_values) {}
 
+/*                                                                     
+ * delete                                                      
+ */
 void HeapTable::del(const Handle handle) {}
 
 
-
+/* go through the file                                                                    
+ * Returns a list of handles for qualifying rows.                                                     
+ */
 Handles * HeapTable::select() {
     Handles* handles = new Handles();
     BlockIDs* block_ids = file.block_ids();
@@ -366,7 +395,9 @@ Handles * HeapTable::select() {
     return handles;
 }
 
-
+/* go through the file                                                                    
+ * Returns a list of handles for qualifying rows.                                                     
+ */
 Handles* HeapTable::select(const ValueDict* where) {
     Handles* handles = new Handles();
     BlockIDs* block_ids = file.block_ids();
@@ -383,6 +414,17 @@ Handles* HeapTable::select(const ValueDict* where) {
 }
 
 
+
+/*                                                                
+ * insert into table                                                    
+ */
+ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {
+    return nullptr;
+}
+
+/*                                                                
+ * Return a sequence of values for handle given by column_names.                                                     
+ */
 ValueDict* HeapTable:: project(Handle handle) {
     BlockID block_id = handle.first;
     RecordID record_id = handle.second;
@@ -395,30 +437,33 @@ ValueDict* HeapTable:: project(Handle handle) {
 }
 
 
-ValueDict * HeapTable::project(Handle handle, const ColumnNames *column_names) {
-	return nullptr;
-}
 
 
+/*
+ *  Check if the given row is acceptable to insert. Raise ValueError if not.   
+ *   Otherwise return the full row dictionary.
+ */
 ValueDict* HeapTable::validate(const ValueDict *row){
 	ValueDict* full_row = new ValueDict();
-    for (auto const& column_name: this->column_names){
-    	ValueDict::const_iterator column = row->find(column_name);
-    	Value value;
+        for (auto const& column_name: this->column_names){
+		ValueDict::const_iterator column = row->find(column_name);
+		Value value;
 
-    	if (column ==row->end()) {
-    	throw DbRelationError("don't know how to handle NULLS, defaults, etc. yet");
-    	}else{
-    		value = column->second;
-    	}
-    	full_row->insert(make_pair(column_name, value));
-    }
-  return full_row;
+    		if (column ==row->end()) {
+    			throw DbRelationError("don't know how to handle NULLS, defaults, etc. yet");
+    		}else{
+    			value = column->second;
+		}
+    		full_row->insert(make_pair(column_name, value));
+	}
+ 	 return full_row;
 }
 
 
 
-
+/*Assumes row is fully fleshed-out. Appends a record to the file 
+ *   
+ */
 Handle HeapTable::append(const ValueDict *row) {
     Dbt *data = this->marshal(row);
     SlottedPage *block = this->file.get(this->file.get_last_block_id());
@@ -441,7 +486,7 @@ Handle HeapTable::append(const ValueDict *row) {
 // return the bits to go into the file
 // // caller responsible for freeing the returned Dbt and its enclosed ret->get_data().
 Dbt* HeapTable::marshal(const ValueDict* row) {
-    char *bytes = new char[DbBlock::BLOCK_SZ]; // more than we need (we insist that one row fits into DbBlock::BLOCK_SZ)
+    char *bytes = new char[DbBlock::BLOCK_SZ]; 
     uint offset = 0;
     uint col_num = 0;
     for (auto const& column_name: this->column_names) {
@@ -449,7 +494,8 @@ Dbt* HeapTable::marshal(const ValueDict* row) {
         ValueDict::const_iterator column = row->find(column_name);
         Value value = column->second;
         if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
-           *(int32_t*) (bytes + offset) = value.n;                                         offset += sizeof(int32_t);                                      
+		 *(int32_t*) (bytes + offset) = value.n; 		
+	         offset += sizeof(int32_t);                                      
 	} else if (ca.get_data_type() == ColumnAttribute::DataType::TEXT) {
             uint size = value.s.length();
             *(u16*) (bytes + offset) = size;
@@ -467,4 +513,89 @@ Dbt* HeapTable::marshal(const ValueDict* row) {
     return data;
 }
 
-ValueDict * HeapTable::unmarshal(Dbt *data) {return nullptr;}
+/*
+ * reverse marshaling process
+ */
+
+ValueDict* HeapTable::unmarshal(Dbt * data) {
+	ValueDict* row = new ValueDict();
+        char* bytes = (char*)data->get_data();
+        uint offset = 0;
+        uint col_num = 0;
+        Value value;
+
+	for (auto const& column_name : this->column_names) {
+		ColumnAttribute ca = this->column_attributes[col_num++];
+		value.data_type = ca.get_data_type();
+
+		if (ca.get_data_type() == ColumnAttribute::DataType::INT) {
+			value.n = *(int32_t*)(bytes + offset);
+			offset += sizeof(int32_t);
+	      		row->insert(make_pair(column_name,value.n));
+		}else if (ca.get_data_type() == ColumnAttribute::DataType::TEXT) {
+			u16 size = *(u16*)(bytes + offset);
+			offset += sizeof(u16);
+
+			char* Size = new char[size];
+			memcpy(Size, bytes + offset, size);
+			Size[size] = '\0';
+
+			value.s = string(Size);  
+			offset += size;
+     	    row->insert(make_pair(column_name,value.s));
+		} else {
+			throw DbRelationError("Only know how to unmarshal INT and TEXT");
+		}
+
+	}
+
+	return row;
+}
+
+
+
+
+
+
+// test function -- returns true if all tests pass
+
+bool test_heap_storage() {
+	ColumnNames column_names;
+	column_names.push_back("a");
+	column_names.push_back("b");
+	ColumnAttributes column_attributes;
+	ColumnAttribute ca(ColumnAttribute::INT);
+	column_attributes.push_back(ca);
+	ca.set_data_type(ColumnAttribute::TEXT);
+	column_attributes.push_back(ca);
+    HeapTable table1("_test_create_drop_cpp", column_names, column_attributes);
+    table1.create();
+    std::cout << "create ok" << std::endl;
+    table1.drop();  // drop makes the object unusable because of BerkeleyDB restriction -- maybe want to fix this some day
+    std::cout << "drop ok" << std::endl;
+
+    HeapTable table("_test_data_cpp", column_names, column_attributes);
+    table.create_if_not_exists();
+    std::cout << "create_if_not_exsts ok" << std::endl;
+
+    ValueDict row;
+    row["a"] = Value(12);
+    row["b"] = Value("Hello!");
+    std::cout << "try insert" << std::endl;
+    table.insert(&row);
+    std::cout << "insert ok" << std::endl;
+    Handles* handles = table.select();
+    std::cout << "select ok " << handles->size() << std::endl;
+    ValueDict *result = table.project((*handles)[0]);
+    std::cout << "project ok" << std::endl;
+    Value value = (*result)["a"];
+    if (value.n != 12)
+    	return false;
+    value = (*result)["b"];
+    if (value.s != "Hello!")
+		return false;
+    table.drop();
+
+    return true;
+}
+
