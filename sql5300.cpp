@@ -12,6 +12,8 @@
 #include "SQLParser.h"
 #include "heap_storage.h"
 
+
+DbEnv *_DB_ENV;
 using namespace std;
 using namespace hsql;
 
