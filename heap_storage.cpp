@@ -8,10 +8,8 @@
  * @see Seattle U, CPSC 5300, Spring 2020
  */
 
-#include "heap_storage.h"
-#include "db_cxx.h"
 #include <cstring>
-#include <utility>
+#include "heap_storage.h"
 
 using namespace std;
 
@@ -358,17 +356,17 @@ BlockIDs* HeapFile::block_ids() {
 void HeapFile::db_open(uint flags) {
     if (!this->closed)
         return;
-    // this->db = new Db();
+    
     this->db.set_re_len(DbBlock::BLOCK_SZ);
     this->dbfilename = this->name + ".db";
 
     // mode 0664 - readable and writable by owner, readable by everyone
-    this->db.open(NULL, this->dbfilename.c_str(), NULL, DB_RECNO, DB_CREATE, 0664);   
+    this->db.open(NULL, this->dbfilename.c_str(), NULL, DB_RECNO, flags, 0664);   
 
     // for Btree or Recno database
-    DB_BTREE_STAT stat;
+    DB_BTREE_STAT *stat;
     this->db.stat(nullptr, &stat, DB_FAST_STAT);
-    this->last = stat.bt_ndata; // the exact number of records in the database
+    this->last = stat->bt_ndata; // the exact number of records in the database
     this->closed = false;
 }
 
@@ -398,7 +396,7 @@ void HeapTable::create_if_not_exists() {
     try {
         open();
     } catch (DbException &e){
-        this->file.create();
+        this->create();
     } 
 }
 
@@ -447,7 +445,7 @@ void HeapTable::update(const Handle handle, const ValueDict *new_values) {
  * Delete a row in the table                                                      
  */
 void HeapTable::del(const Handle handle) {
-    // this->
+   
 }
 
 /**                                                                  
@@ -455,15 +453,7 @@ void HeapTable::del(const Handle handle) {
  * @return the BlockID RecordID pair  
 */
 Handles * HeapTable::select() {
-    Handles* handles = new Handles();
-    BlockIDs* block_ids = file.block_ids();
-    for (auto const& block_id: *block_ids) {
-        SlottedPage* block = file.get(block_id);
-        RecordIDs* record_ids = block->ids();
-        for (auto const& record_id: *record_ids)
-            handles->push_back(Handle(block_id, record_id));
-    }
-    return handles;
+    return this->select(nullptr);
 }
 
 /**                                                                  
@@ -501,9 +491,9 @@ ValueDict* HeapTable:: project(Handle handle) {
     RecordID record_id = handle.second;
     SlottedPage* block = file.get(block_id);
     Dbt* data = block->get(record_id);
+    ValueDict* row = unmarshal(data);
     delete block;
     delete data;
-    ValueDict* row = unmarshal(data);
     return row;
 }
 
