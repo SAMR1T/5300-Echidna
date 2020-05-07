@@ -8,6 +8,7 @@
 using namespace std;
 using namespace hsql;
 
+
 // define static data
 Tables *SQLExec::tables = nullptr;
 
@@ -43,12 +44,14 @@ ostream &operator<<(ostream &out, const QueryResult &qres) {
 }
 
 QueryResult::~QueryResult() {
-    // FIXME
+    delete Tables;  //FIX ME
 }
 
 
 QueryResult *SQLExec::execute(const SQLStatement *statement) {
-    // FIXME: initialize _tables table, if not yet present
+
+    if(SQLExec::tables == nullptr)
+        SQLExec::tables = new Tables();
 
     try {
         switch (statement->type()) {
@@ -76,8 +79,17 @@ QueryResult *SQLExec::create(const CreateStatement *statement) {
 }
 
 // DROP ...
-QueryResult *SQLExec::drop(const DropStatement *statement) {
-    return new QueryResult("not implemented"); // FIXME
+QueryResult *SQLExec::drop(const DropStatement *statement) { //FIXME
+
+    if (statement->type != DropStatement::kTable)
+        throw SQLExecError("Unrecognized DROP type");
+    delete handles;
+
+    remove.drop();
+
+    SQLExec::tables->del(*SQLExec::tables->select(&where)->begin());
+
+    return new QueryResult(std::string("dropped ") + table_name); 
 }
 
 QueryResult *SQLExec::show(const ShowStatement *statement) {
