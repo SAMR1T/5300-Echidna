@@ -44,7 +44,21 @@ ostream &operator<<(ostream &out, const QueryResult &qres)
     return out;
 }
 
-// FIX ME --> Not done, just an idea
+QueryResult::~QueryResult()
+{
+  //FIX ME
+  if (column_names != nullptr)
+    delete column_names;
+  if (column_attributes != nullptr)
+    delete column_attributes;
+  if (rows != nullptr) {
+      for (auto const& row : *rows)
+        delete row;
+    delete rows;
+  }
+}
+
+/*// FIX ME --> Not done, just an idea
 QueryResult::~QueryResult()
 {
     delete tables;
@@ -53,7 +67,7 @@ QueryResult::~QueryResult()
     for(ValueDict *row: *rows)
             delete row;
     delete rows;
-}
+}*/
 
 
 QueryResult *SQLExec::execute(const SQLStatement *statement)
@@ -82,7 +96,65 @@ void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_
     throw SQLExecError("not implemented");  // FIXME
 }
 
-QueryResult *SQLExec::create(const CreateStatement *statement)
+QueryResult *SQLExec::create(const CreateStatement *statement) {
+
+    Identifier table_name = statement->tableName;
+    ColumnNames column_names;
+    ColumnAttributes column_attributes;
+    Identifier column_name;
+    ColumnAttribute col_attr;
+
+
+    for (ColumnDefinition *column : *statement->columns) {
+        column_definition(column, column_name, col_attr);
+        column_names.push_back(column_name);
+        column_attributes.push_back(col_attr);
+    }
+
+    ValueDict row;
+    row["table_name"] = table_name;
+
+    Handle table_handle = SQLExec::tables->insert(&row);
+
+    try {
+        Handles col_handle;
+        DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
+
+        try {
+            for (long unsigned int i = 0; i < column_names.size(); i++) {
+                row["column_name"] = column_names[i];
+                row["data_type"] = Value(column_attributes[i].get_data_type() == ColumnAttribute::INT ? "INT" : "TEXT");
+                col_handle.push_back(columns.insert(&row));
+            }
+                
+            //create table
+            DbRelation& table = SQLExec::tables->get_table(table_name);
+            table.create();
+        } catch (exception& e) {
+            //undo insertion to columns
+            try {
+                for (short unsigned int i = 0; i < col_handle.size(); i++) {
+                    columns.del(col_handle.at(i));
+                }
+            } catch (...) {
+
+            } throw;
+
+        }
+    } catch (exception& e) {
+
+        //undo insertion on tables
+        try {
+            SQLExec::tables->del(table_handle);
+        } catch (...) {
+
+        } throw;
+    }
+
+   return new QueryResult(std::string("Created ") + table_name); 
+}
+
+/*QueryResult *SQLExec::create(const CreateStatement *statement)
 {
     swtich(statement->type)
     {
@@ -91,17 +163,37 @@ QueryResult *SQLExec::create(const CreateStatement *statement)
         default:
             return new QueryResult("Only CREATE TABLE is supported");
     }
-}
+}*/
 
-// FIX ME --> Not done, just based on his instructions but won't work?
-QueryResult *SQLExec::drop(const DropStatement *statement) 
-{
+// DROP ...
+QueryResult *SQLExec::drop(const DropStatement *statement) { //FIXME
 
-    if (statement->type != DropStatement::kTable)
+    if (statement->type != DropStatement::kTable) {
         throw SQLExecError("Unrecognized DROP type");
+    }
+    
+    //get the table name
+    Identifier table_name =  statement->name;
+
+    if(table_name == Tables::TABLE_NAME || table_name == Columns::TABLE_NAME){
+        throw SQLExecError("Cannot drop a schema table");
+    }
+
+    //get the table
+    DbRelation &table = SQLExec::tables->get_table(table_name);
+
+    //remove columns
+    DbRelation &columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
+
+    ValueDict where;
+    where["table_name"] = Value(table_name);
+
+    Handles* handles = columns.select(&where);
+    for(auto const& handle : *handles)
+        columns.del(handle);
     delete handles;
 
-    remove.drop();
+    table.drop();
 
     SQLExec::tables->del(*SQLExec::tables->select(&where)->begin());
 
@@ -124,11 +216,11 @@ QueryResult *SQLExec::show(const ShowStatement *statement)
 
 QueryResult *SQLExec::show_tables()
 {
-    ColumnNames *resultsColNames = new ColumnNames();
-    ColumnAttributes *resultsColAttribs = new ColumnAttributes();
+    ColumnNames *col_names = new ColumnNames();
+    ColumnAttributes *col_attribs = new ColumnAttributes();
 
     // We need to get the column names and it's attributes
-    tables->get_columns(Tables::TABLE_NAME, *resultsColNames, *resultsColAttribs);
+    tables->get_columns(Tables::TABLE_NAME, *col_names, *col_attribs);
 
     // Handles to all table entries
     Handles *handles = tables->select();
@@ -139,7 +231,7 @@ QueryResult *SQLExec::show_tables()
     // Go through the handles and add them to the ValueDict
     for(Handle handle : *handles)
     {
-        ValueDict *row = tables->project(handle, resultsColNames);
+        ValueDict *row = tables->project(handle, col_names);
         if(row->at("table_name") != Value("_tables") && row->at("table_name") != Value("_columns")) 
             rows->push_back(row);
     }
@@ -147,13 +239,38 @@ QueryResult *SQLExec::show_tables()
 
     // Use QueryResult with all results from queries (return cn, ca, rows, message)
     string message = " Succesfully got " + to_string(rows->size()) + " rows";
-    return new QueryResult(resultsColNames, resultsColAttribs, rows, message);
+    return new QueryResult(col_names, col_attribs, rows, message);
 }
 
 QueryResult *SQLExec::show_columns(const ShowStatement *statement) 
 {
     // i think this will be similar to show table
     // except we focus on column...
-    return new QueryResult("not implemented"); // FIXME
+    
+    ColumnNames *col_names = new ColumnNames();
+    ColumnAttributes *col_attribs = new ColumnAttributes();
+
+    tables->get_columns(Columns::TABLE_NAME, *col_names, *col_attribs);
+
+    // Get the rows from _columns that match the table name
+    ValueDict where;
+    where["table_name"] = Value(statement->tableName);
+
+    // Get the table for
+    DbRelation &column_table = tables->get_table(Columns::TABLE_NAME);
+
+    // Get all values that match the where
+    Handles *handles = column_table.select(&where);
+
+    // Add rows the the ValueDict
+    ValueDicts *rows = new ValueDicts;
+    for(Handle handle : *handles)
+    {
+        ValueDict *row = column_table.project(handle, col_names);
+        rows->push_back(row);
+    }
+    delete handles;
+
+    return new QueryResult(col_names, col_attribs, rows," Sucessfully got " + to_string(rows->size()) + " rows!");
 }
 
