@@ -13,7 +13,8 @@ using namespace hsql;
 Tables *SQLExec::tables = nullptr;
 
 // make query result be printable
-ostream &operator<<(ostream &out, const QueryResult &qres) {
+ostream &operator<<(ostream &out, const QueryResult &qres) 
+{
     if (qres.column_names != nullptr) {
         for (auto const &column_name: *qres.column_names)
             out << column_name << " ";
@@ -43,8 +44,8 @@ ostream &operator<<(ostream &out, const QueryResult &qres) {
     return out;
 }
 
-QueryResult::~QueryResult() {
-  //FIX ME
+QueryResult::~QueryResult()
+{
   if (column_names != nullptr)
     delete column_names;
   if (column_attributes != nullptr)
@@ -56,9 +57,20 @@ QueryResult::~QueryResult() {
   }
 }
 
+/*// FIX ME --> Not done, just an idea
+QueryResult::~QueryResult()
+{
+    delete tables;
+    delete column_names;
+    delete column_attributes;
+    for(ValueDict *row: *rows)
+            delete row;
+    delete rows;
+}*/
 
-QueryResult *SQLExec::execute(const SQLStatement *statement) {
 
+QueryResult *SQLExec::execute(const SQLStatement *statement)
+{
     if(SQLExec::tables == nullptr)
         SQLExec::tables = new Tables();
 
@@ -79,8 +91,16 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) {
 }
 
 //used in create function
-void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute) {
-    throw SQLExecError("not implemented");  // FIXME
+void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute)
+{
+  column_name = col->name;
+  if (col->type == ColumnDefinition::INT) {
+    column_attribute.set_data_type(ColumnAttribute::INT);
+  } else if (col->type == ColumnDefinition::TEXT) {
+    column_attribute.set_data_type(ColumnAttribute::TEXT);
+  } else {
+    throw SQLExecError("Unrecognized data type");
+  }
 
 }
 
@@ -177,15 +197,77 @@ QueryResult *SQLExec::drop(const DropStatement *statement) { //FIXME
     return new QueryResult(std::string("dropped ") + table_name); 
 }
 
-QueryResult *SQLExec::show(const ShowStatement *statement) {
-    return new QueryResult("not implemented"); // FIXME
+QueryResult *SQLExec::show(const ShowStatement *statement) 
+{
+    switch(statement->type)
+    {
+        case ShowStatement::kTables:
+            return show_tables();
+        case ShowStatement::kColumns:
+            return show_columns(statement);
+        default:
+            throw SQLExecError(" not implemented, only SHOW TABLES and SHOW COLUMNS is supported.");
+    } 
+    return NULL; 
 }
 
-QueryResult *SQLExec::show_tables() {
-    return new QueryResult("not implemented"); // FIXME
+QueryResult *SQLExec::show_tables()
+{
+    ColumnNames *col_names = new ColumnNames();
+    ColumnAttributes *col_attribs = new ColumnAttributes();
+
+    // We need to get the column names and it's attributes
+    tables->get_columns(Tables::TABLE_NAME, *col_names, *col_attribs);
+
+    // Handles to all table entries
+    Handles *handles = tables->select();
+
+    // Create a vector to hold all the values
+    ValueDicts *rows = new ValueDicts();
+
+    // Go through the handles and add them to the ValueDict
+    for(Handle handle : *handles)
+    {
+        ValueDict *row = tables->project(handle, col_names);
+        if(row->at("table_name") != Value("_tables") && row->at("table_name") != Value("_columns")) 
+            rows->push_back(row);
+    }
+    delete handles;
+
+    // Use QueryResult with all results from queries (return cn, ca, rows, message)
+    string message = " Succesfully got " + to_string(rows->size()) + " rows";
+    return new QueryResult(col_names, col_attribs, rows, message);
 }
 
-QueryResult *SQLExec::show_columns(const ShowStatement *statement) {
-    return new QueryResult("not implemented"); // FIXME
+QueryResult *SQLExec::show_columns(const ShowStatement *statement) 
+{
+    // i think this will be similar to show table
+    // except we focus on column...
+    
+    ColumnNames *col_names = new ColumnNames();
+    ColumnAttributes *col_attribs = new ColumnAttributes();
+
+    tables->get_columns(Columns::TABLE_NAME, *col_names, *col_attribs);
+
+    // Get the rows from _columns that match the table name
+    ValueDict where;
+    where["table_name"] = Value(statement->tableName);
+
+    // Get the table for
+    DbRelation &column_table = tables->get_table(Columns::TABLE_NAME);
+
+    // Get all values that match the where
+    Handles *handles = column_table.select(&where);
+
+    // Add rows the the ValueDict
+    ValueDicts *rows = new ValueDicts;
+    for(Handle handle : *handles)
+    {
+        ValueDict *row = column_table.project(handle, col_names);
+        rows->push_back(row);
+    }
+    delete handles;
+
+    return new QueryResult(col_names, col_attribs, rows," Sucessfully got " + to_string(rows->size()) + " rows!");
 }
 
