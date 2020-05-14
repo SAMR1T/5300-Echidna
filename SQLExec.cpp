@@ -13,8 +13,7 @@ using namespace hsql;
 Tables *SQLExec::tables = nullptr;
 
 // make query result be printable
-ostream &operator<<(ostream &out, const QueryResult &qres) 
-{
+ostream &operator<<(ostream &out, const QueryResult &qres) {
     if (qres.column_names != nullptr) {
         for (auto const &column_name: *qres.column_names)
             out << column_name << " ";
@@ -32,6 +31,9 @@ ostream &operator<<(ostream &out, const QueryResult &qres)
                     case ColumnAttribute::TEXT:
                         out << "\"" << value.s << "\"";
                         break;
+                    case ColumnAttribute::BOOLEAN:
+                        out << (value.n == 0 ? "false" : "true");
+                        break;
                     default:
                         out << "???";
                 }
@@ -44,7 +46,7 @@ ostream &operator<<(ostream &out, const QueryResult &qres)
     return out;
 }
 
-QueryResult::~QueryResult()
+QueryResult::~QueryResult() // FIXME
 {
   if (column_names != nullptr)
     delete column_names;
@@ -57,20 +59,9 @@ QueryResult::~QueryResult()
   }
 }
 
-/*// FIX ME --> Not done, just an idea
-QueryResult::~QueryResult()
-{
-    delete tables;
-    delete column_names;
-    delete column_attributes;
-    for(ValueDict *row: *rows)
-            delete row;
-    delete rows;
-}*/
-
-
 QueryResult *SQLExec::execute(const SQLStatement *statement)
 {
+    // FIXME: initialize _tables table, if not yet present
     if(SQLExec::tables == nullptr)
         SQLExec::tables = new Tables();
 
@@ -91,7 +82,7 @@ QueryResult *SQLExec::execute(const SQLStatement *statement)
 }
 
 //used in create function
-void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute)
+void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute) // FIXME
 {
   column_name = col->name;
   if (col->type == ColumnDefinition::INT) {
@@ -105,61 +96,22 @@ void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_
 }
 
 QueryResult *SQLExec::create(const CreateStatement *statement) {
-
-    Identifier table_name = statement->tableName;
-    ColumnNames column_names;
-    ColumnAttributes column_attributes;
-    Identifier column_name;
-    ColumnAttribute col_attr;
-
-
-    for (ColumnDefinition *column : *statement->columns) {
-        column_definition(column, column_name, col_attr);
-        column_names.push_back(column_name);
-        column_attributes.push_back(col_attr);
+    switch (statement->type) {
+        case CreateStatement::kTable:
+            return create_table(statement);
+        case CreateStatement::kIndex:
+            return create_index(statement);
+        default:
+            return new QueryResult("Only CREATE TABLE and CREATE INDEX are implemented");
     }
+}
 
-    ValueDict row;
-    row["table_name"] = table_name;
+QueryResult *SQLExec::create_table(const CreateStatement *statement) {
+    return new QueryResult("create table not implemented");  // FIXME
+}
 
-    Handle table_handle = SQLExec::tables->insert(&row);
-
-    try {
-        Handles col_handle;
-        DbRelation& columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
-
-        try {
-            for (long unsigned int i = 0; i < column_names.size(); i++) {
-                row["column_name"] = column_names[i];
-                row["data_type"] = Value(column_attributes[i].get_data_type() == ColumnAttribute::INT ? "INT" : "TEXT");
-                col_handle.push_back(columns.insert(&row));
-            }
-                
-            //create table
-            DbRelation& table = SQLExec::tables->get_table(table_name);
-            table.create();
-        } catch (exception& e) {
-            //undo insertion to columns
-            try {
-                for (short unsigned int i = 0; i < col_handle.size(); i++) {
-                    columns.del(col_handle.at(i));
-                }
-            } catch (...) {
-
-            } throw;
-
-        }
-    } catch (exception& e) {
-
-        //undo insertion on tables
-        try {
-            SQLExec::tables->del(table_handle);
-        } catch (...) {
-
-        } throw;
-    }
-
-   return new QueryResult(std::string("Created ") + table_name); 
+QueryResult *SQLExec::create_index(const CreateStatement *statement) {
+    return new QueryResult("create index not implemented");  // FIXME
 }
 
 // DROP ...
@@ -197,21 +149,11 @@ QueryResult *SQLExec::drop(const DropStatement *statement) { //FIXME
     return new QueryResult(std::string("dropped ") + table_name); 
 }
 
-QueryResult *SQLExec::show(const ShowStatement *statement) 
-{
-    switch(statement->type)
-    {
-        case ShowStatement::kTables:
-            return show_tables();
-        case ShowStatement::kColumns:
-            return show_columns(statement);
-        default:
-            throw SQLExecError(" not implemented, only SHOW TABLES and SHOW COLUMNS is supported.");
-    } 
-    return NULL; 
+QueryResult *SQLExec::show_index(const ShowStatement *statement) {
+    return new QueryResult("not implemented"); // FIXME
 }
 
-QueryResult *SQLExec::show_tables()
+QueryResult *SQLExec::show_tables() // FIXME
 {
     ColumnNames *col_names = new ColumnNames();
     ColumnAttributes *col_attribs = new ColumnAttributes();
@@ -239,7 +181,7 @@ QueryResult *SQLExec::show_tables()
     return new QueryResult(col_names, col_attribs, rows, message);
 }
 
-QueryResult *SQLExec::show_columns(const ShowStatement *statement) 
+QueryResult *SQLExec::show_columns(const ShowStatement *statement) // FIXME
 {
     // i think this will be similar to show table
     // except we focus on column...
