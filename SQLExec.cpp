@@ -149,6 +149,18 @@ QueryResult *SQLExec::drop(const DropStatement *statement) { //FIXME
     return new QueryResult(std::string("dropped ") + table_name); 
 }
 
+QueryResult *SQLExec::show(const ShowStatement *statement) {
+    switch (statement->type) {
+        case ShowStatement::kTables:
+            return show_tables();
+        case ShowStatement::kColumns:
+            return show_columns(statement);
+        case ShowStatement::kIndex:
+        default:
+            throw SQLExecError("unrecognized SHOW type");
+    }
+}
+
 QueryResult *SQLExec::show_index(const ShowStatement *statement) {
     return new QueryResult("not implemented"); // FIXME
 }
