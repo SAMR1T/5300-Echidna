@@ -1,28 +1,52 @@
-# 5300-Instructor
-DB Relation Manager project for CPSC5300/4300 at Seattle U, Spring 2020; Instructor Solution
+# 5300-Echidna
+DB Relation Manager project for CPSC5300/4300 at Seattle U, Spring 2020
 
-## Tags
-- <code>Milestone1</code> is playing around with the AST returned by the HyLine parser and general setup of the command loop.
-- <code>Milestone2h</code> has the instructor-provided files for Milestone 2. (Note that <code>heap_storage.cpp</code> is just a stub.)
-- <code>Milestone2</code> is the instructor's attempt to complete the Milestone 2 assignment.
-- <code>Milestone3_prep</code> has the instructor-provided files for Milestone 3. The students' work is in 
-<code>SQLExec.cpp</code> labeled with <code>FIXME</code>.
+### Sprint Verano: Milestone 1
+A simple SQL interpreter that runs from command line and prompts users for SQL statements.
 
-## Unit Tests
-There are some tests for SlottedPage and HeapTable. They can be invoked from the <clode>SQL</code> prompt:
-```sql
-SQL> test
-```
-Be aware that failed tests may leave garbage Berkeley DB files lingering in your data directory. 
-If you don't care about any data in there, you are advised to just delete them all after a failed test.
-```sh
-$ rm -f data/*
-``` 
+* **Command to run**</br>
+./sql5300 ../data</br>
+enter SQL statement to validate and interpret</br>
+enter "quit" to exit the program</br>
 
-## Valgrind (Linux)
-To run valgrind (files must be compiled with <code>-ggdb</code>):
-```sh
-$ valgrind --leak-check=full --suppressions=valgrind.supp ./sql5300 data
-```
-Note that we've added suppression for the known issues with the Berkeley DB library <em>vis-à-vis</em> valgrind.
+* **Current status**</br>
+Support CREATE and SELECT statements</br>
+Support TEXT, INT, DOUBLE data types</br>
+Support FROM, WHERE, and ON clauses </br>
+Support JOIN, LEFT JOIN, and RIGHT JOIN clauses</br>
+Support AS alias</br>
 
+* **Use case examples**</br>
+SQL> create table foo (a text, b integer, c double)</br>
+---> CREATE TABLE foo (a TEXT, b INT, c DOUBLE)</br>
+SQL> select * from foo left join goober on foo.x=goober.x</br>
+---> SELECT * FROM foo LEFT JOIN goober ON foo.x = goober.x</br>
+SQL> select * from foo as f left join goober on f.x = goober.x</br>
+---> SELECT * FROM foo AS f LEFT JOIN goober ON f.x = goober.x</br>
+SQL> select * from foo as f left join goober as g on f.x = g.x</br>
+---> SELECT * FROM foo AS f LEFT JOIN goober AS g ON f.x = g.x</br>
+SQL> select a,b,g.c from foo as f, goo as g</br>
+---> SELECT a, b, g.c FROM goo AS g, foo AS f</br>
+SQL> select a,b,c from foo where foo.b > foo.c + 6</br>
+---> SELECT a, b, c FROM foo WHERE foo.b > foo.c + 6</br>
+SQL> select f.a,g.b,h.c from foo as f join goober as g on f.id = g.id where f.z >1</br>
+---> SELECT f.a, g.b, h.c FROM foo AS f JOIN goober AS g ON f.id = g.id WHERE f.z > 1</br>
+SQL> foo bar blaz</br>
+ X Invalid SQL statement.</br>
+SQL> quit</br>
+
+### Sprint Verano: Milestone 2
+A rudimentary heap storage engine implemented with SlottedPage, HeapFile, and HeapTable.
+
+* **Command to run**</br>
+./sql5300 ../data</br>
+enter "test" to evaluate storage engine</br>
+enter "quit" to exit the program</br>
+
+* **Current status**</br>
+SlottedPage - implementation done</br>
+HeapFile - implementation done </br>
+HeapTable  - implementation done</br>
+
+* **Handover video**</br>
+https://seattleu.instructuremedia.com/embed/c0dce768-704d-4164-b983-77114b32843e
