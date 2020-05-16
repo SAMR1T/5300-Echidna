@@ -10,6 +10,7 @@ using namespace hsql;
 
 // define static data
 Tables *SQLExec::tables = nullptr;
+Indices *SQLExec::indices = nullptr;
 
 // make query result be printable
 ostream &operator<<(ostream &out, const QueryResult &qres) {
@@ -79,8 +80,7 @@ QueryResult *SQLExec::execute(const SQLStatement *statement) {
     }
 }
 
-void
-SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute) {
+void SQLExec::column_definition(const ColumnDefinition *col, Identifier &column_name, ColumnAttribute &column_attribute) {
     column_name = col->name;
     switch (col->type) {
         case ColumnDefinition::INT:
@@ -185,13 +185,26 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
     // get the table
     DbRelation &table = SQLExec::tables->get_table(table_name);
 
+    //remove indices
+
+    //IndexNames indices = SQLExec::indices->get_index_names(table_name);
+    for(auto const &index_name: SQLExec::indices->get_index_names(table_name)){
+        DbIndex &index = SQLExec::indices->get_index(table_name, index_name);
+        index.drop();
+    }
+    
+    Handles *index_handles = SQLExec::indices->select(&where);
+    for(auto const &handle : *index_handles)
+        SQLExec::indices->del(handle);
+    delete index_handles;
+    
     // remove from _columns schema
     DbRelation &columns = SQLExec::tables->get_table(Columns::TABLE_NAME);
     Handles *handles = columns.select(&where);
     for (auto const &handle: *handles)
         columns.del(handle);
     delete handles;
-
+    
     // remove table
     table.drop();
 
@@ -204,7 +217,24 @@ QueryResult *SQLExec::drop_table(const DropStatement *statement) {
 }
 
 QueryResult *SQLExec::drop_index(const DropStatement *statement) {
-    return new QueryResult("drop index not implemented");  // FIXME
+    Identifier table_name = statement->name;
+    Identifier index_name = statement->indexName;
+
+    ValueDict where;
+    where["table_name"] = Value(table_name);
+    where["index_name"] = Value(index_name);
+
+    //Get reference to the index and then drop it
+    DbIndex &index = SQLExec::indices->get_index(table_name, index_name);
+    index.drop();
+
+    //remove all the rows from _indices for the specific index
+    Handles *handles = SQLExec::indices->select(&where);
+    for (auto const &handle : *handles) 
+        SQLExec::indices->del(handle);
+    
+    delete handles;
+    return new QueryResult(string("dropped index ") + index_name);
 }
 
 QueryResult *SQLExec::show(const ShowStatement *statement) {
