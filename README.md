@@ -79,7 +79,10 @@ SQL> quit</br>
 
 ### Milestone 4
 Setup Indexing by implementing by creating, dropping, showing an index as well as dropping an index for each table.</br>
-* Implemented functions on SQLExec.cpp for this milestone.</br>
+* Implemented required functions on SQLExec.cpp for this milestone.</br>
+* Run on cs1 </br>
+* HandOver Video</br>
+https://seattleu.instructuremedia.com/embed/61f79262-502e-40d2-8ccc-99ddbc8c8d67</br>
 
 * **How to run program with example commands**</br>
 ./sql5300 ../data</br>
